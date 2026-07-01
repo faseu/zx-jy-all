@@ -139,7 +139,7 @@ public class TDeviceServiceImpl extends ServiceImpl<TDeviceMapper, TDevice> impl
             );
 
 //            for (int i = 0; i < chs.size(); i++) {
-//                byte[] cmd = ShieldProtocolUtil.buildCmdSetAtt(i + 1, Integer.parseInt(chs.get(i))); // 修正索引从1开始
+//                byte[] cmd = ShieldProtocolUtil.buildCmdSetAtt(i, Integer.parseInt(chs.get(i))); // 协议通道号从0开始
 //                udpServer.sendCmd(entity.getEntireNo(), cmd);
 //            }
         } catch(Exception e){
@@ -220,13 +220,27 @@ public class TDeviceServiceImpl extends ServiceImpl<TDeviceMapper, TDevice> impl
             }
 
             for (int i = 0; i < chs.size(); i++) {
-                byte[] fullPacket = ShieldProtocolUtil.buildCmdSetAtt(i + 1, Integer.parseInt(chs.get(i))); // 修正索引从1开始
+                String value = chs.get(i);
+                if (StringUtils.isBlank(value)) {
+                    throw new IllegalArgumentException("ch" + (i + 1) + "不能为空");
+                }
+
+                int attValue = Integer.parseInt(value);
+                if (attValue < ShieldProtocolConstants.MIN_ATT || attValue > ShieldProtocolConstants.MAX_ATT) {
+                    throw new IllegalArgumentException("ch" + (i + 1) + "衰减值必须在0-63之间");
+                }
+
+                byte[] fullPacket = ShieldProtocolUtil.buildCmdSetAtt(i, attValue);
+                if (fullPacket == null) {
+                    throw new IllegalArgumentException("ch" + (i + 1) + "衰减设置报文构造失败");
+                }
+
                 DeviceCommand command = new DeviceCommand(
-                        ShieldProtocolConstants.CMD_ATT_GET,
+                        ShieldProtocolConstants.CMD_ATT_SET,
                         fullPacket,
-                        ShieldProtocolConstants.CMD_ATT_GET_ACK
+                        ShieldProtocolConstants.CMD_ATT_SET_ACK
                 );
-                String commandId = redisCommandQueue.sendCommand(originalDevice.getEntireNo(), command);
+                redisCommandQueue.sendCommand(originalDevice.getEntireNo(), command);
             }
 
 

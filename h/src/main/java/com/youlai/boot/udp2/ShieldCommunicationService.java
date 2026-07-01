@@ -9,6 +9,9 @@ import org.springframework.stereotype.Component;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.InetAddress;
+import java.nio.charset.StandardCharsets;
+import java.util.Arrays;
+import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -38,6 +41,7 @@ public class ShieldCommunicationService implements CommandLineRunner {
 
     // 正在执行的命令映射（设备ID → 命令对象）
     private final Map<Integer, DeviceCommand> executingCommands = new ConcurrentHashMap<>();
+    private final Map<String, Integer> endpointDeviceIds = new ConcurrentHashMap<>();
 
     /**
      * Spring Boot应用启动完成后自动执行此方法
@@ -162,6 +166,7 @@ public class ShieldCommunicationService implements CommandLineRunner {
             byte[] statusData = ShieldPacketCodec.decodeData(packet);
             DeviceStatus status = DeviceStatus.fromBytes(statusData);
             int deviceId = status.getDeviceId();
+            endpointDeviceIds.put(endpointKey(address, port), deviceId);
 
             // 保存状态到Redis
             redisCommandQueue.saveDeviceStatus(deviceId, status);
@@ -257,8 +262,10 @@ public class ShieldCommunicationService implements CommandLineRunner {
                         } else {
                             // 超过最大重试次数，标记失败
                             executingCommands.remove(deviceId);
-                            redisCommandQueue.saveCommandResult(executingCommand.getCommandId(),
-                                    Map.of("error", "命令执行超时，超过最大重试次数"));
+                            redisCommandQueue.saveCommandResult(
+                                    executingCommand.getCommandId(),
+                                    buildTimeoutResult(deviceId, executingCommand)
+                            );
                             log.error("命令[{}]执行失败，超过最大重试次数", executingCommand.getCommandId());
                         }
                     }
@@ -294,20 +301,35 @@ public class ShieldCommunicationService implements CommandLineRunner {
             // 解码应答数据
             byte[] responseData = ShieldPacketCodec.decodeData(packet);
 
-            // 查找对应的正在执行的命令
+            Integer deviceId = endpointDeviceIds.get(endpointKey(address, port));
+            DeviceCommand command = deviceId == null ? null : executingCommands.get(deviceId);
+
+            if (command != null && command.getExpectedAckCmd() == ackCmd) {
+                redisCommandQueue.saveCommandResult(
+                        command.getCommandId(),
+                        buildCommandResult(deviceId, command, ackCmd, responseData)
+                );
+                executingCommands.remove(deviceId);
+
+                log.info("收到设备[{}]的命令应答[0x{}], 命令ID: {}",
+                        deviceId, Integer.toHexString(ackCmd & 0xFF), command.getCommandId());
+                return;
+            }
+
+            // 兼容旧设备源端口变化的情况：找不到来源映射时再按ACK命令字兜底匹配
             for (Map.Entry<Integer, DeviceCommand> entry : executingCommands.entrySet()) {
-                DeviceCommand command = entry.getValue();
-                if (command.getExpectedAckCmd() == ackCmd) {
-                    int deviceId = entry.getKey();
+                DeviceCommand fallbackCommand = entry.getValue();
+                if (fallbackCommand.getExpectedAckCmd() == ackCmd) {
+                    int fallbackDeviceId = entry.getKey();
 
-                    // 保存命令执行结果到Redis
-                    redisCommandQueue.saveCommandResult(command.getCommandId(), responseData);
-
-                    // 移除正在执行的命令
-                    executingCommands.remove(deviceId);
+                    redisCommandQueue.saveCommandResult(
+                            fallbackCommand.getCommandId(),
+                            buildCommandResult(fallbackDeviceId, fallbackCommand, ackCmd, responseData)
+                    );
+                    executingCommands.remove(fallbackDeviceId);
 
                     log.info("收到设备[{}]的命令应答[0x{}], 命令ID: {}",
-                            deviceId, Integer.toHexString(ackCmd & 0xFF), command.getCommandId());
+                            fallbackDeviceId, Integer.toHexString(ackCmd & 0xFF), fallbackCommand.getCommandId());
                     return;
                 }
             }
@@ -317,6 +339,193 @@ public class ShieldCommunicationService implements CommandLineRunner {
         } catch (Exception e) {
             log.error("处理命令应答失败", e);
         }
+    }
+
+    private String endpointKey(InetAddress address, int port) {
+        return address.getHostAddress() + ":" + port;
+    }
+
+    private Map<String, Object> buildTimeoutResult(int deviceId, DeviceCommand command) {
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("commandId", command.getCommandId());
+        result.put("deviceId", deviceId);
+        result.put("requestCmd", toHex(command.getCmd()));
+        result.put("ackCmd", toHex(command.getExpectedAckCmd()));
+        result.put("status", "timeout");
+        result.put("statusCode", null);
+        result.put("statusText", "命令执行超时，超过最大重试次数");
+        result.put("retryCount", command.getRetryCount());
+        result.put("createdAt", command.getCreateTime());
+        result.put("ackAt", null);
+        return result;
+    }
+
+    private Map<String, Object> buildCommandResult(
+            int deviceId,
+            DeviceCommand command,
+            byte ackCmd,
+            byte[] responseData
+    ) {
+        int statusCode = responseData.length > 0 ? responseData[0] & 0xFF : -1;
+
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("commandId", command.getCommandId());
+        result.put("deviceId", deviceId);
+        result.put("requestCmd", toHex(command.getCmd()));
+        result.put("ackCmd", toHex(ackCmd));
+        result.put("status", toCommandStatus(statusCode));
+        result.put("statusCode", statusCode);
+        result.put("statusText", toStatusText(statusCode));
+        result.put("retryCount", command.getRetryCount());
+        result.put("createdAt", command.getCreateTime());
+        result.put("ackAt", System.currentTimeMillis());
+        result.put("rawData", ShieldPacketCodec.bytesToHex(responseData));
+        result.put("payload", parseAckPayload(ackCmd, responseData));
+        return result;
+    }
+
+    private Map<String, Object> parseAckPayload(byte ackCmd, byte[] data) {
+        Map<String, Object> payload = new LinkedHashMap<>();
+
+        switch (ackCmd) {
+            case ShieldProtocolConstants.CMD_RF_SWITCH_GET_ACK:
+                if (data.length >= 3) {
+                    payload.put("channel", (data[1] & 0xFF) + 1);
+                    payload.put("enabled", (data[2] & 0xFF) == 1);
+                }
+                break;
+            case ShieldProtocolConstants.CMD_ATT_GET_ACK:
+                if (data.length >= 3) {
+                    int attValue = data[2] & 0xFF;
+                    payload.put("channel", (data[1] & 0xFF) + 1);
+                    payload.put("attValue", attValue);
+                    payload.put("attDb", attValue * 0.5);
+                }
+                break;
+            case ShieldProtocolConstants.CMD_NETWORK_SET_ACK:
+            case ShieldProtocolConstants.CMD_NETWORK_GET_ACK:
+                parseNetworkPayload(data, payload);
+                break;
+            case ShieldProtocolConstants.CMD_ALARM_THRESHOLD_GET_ACK:
+                parseAlarmThresholdPayload(data, payload);
+                break;
+            case ShieldProtocolConstants.CMD_GET_DEVICE_INFO_ACK:
+                parseDeviceInfoPayload(data, payload);
+                break;
+            default:
+                break;
+        }
+
+        return payload;
+    }
+
+    private void parseNetworkPayload(byte[] data, Map<String, Object> payload) {
+        if (data.length < 37) {
+            return;
+        }
+
+        payload.put("destMac", bytesToHex(Arrays.copyOfRange(data, 1, 7), ":"));
+        payload.put("deviceMac", bytesToHex(Arrays.copyOfRange(data, 7, 13), ":"));
+        payload.put("deviceIp", bytesToIp(Arrays.copyOfRange(data, 13, 17)));
+        payload.put("gateway", bytesToIp(Arrays.copyOfRange(data, 17, 21)));
+        payload.put("subnetMask", bytesToIp(Arrays.copyOfRange(data, 21, 25)));
+        payload.put("serverIp", bytesToIp(Arrays.copyOfRange(data, 25, 29)));
+        payload.put("backupServerIp", bytesToIp(Arrays.copyOfRange(data, 29, 33)));
+        payload.put("devicePort", readUInt2LE(data, 33));
+        payload.put("serverPort", readUInt2LE(data, 35));
+    }
+
+    private void parseAlarmThresholdPayload(byte[] data, Map<String, Object> payload) {
+        if (data.length < 37) {
+            return;
+        }
+
+        payload.put("lowVoltageMv", readUInt4LE(data, 1));
+        payload.put("highVoltageMv", readUInt4LE(data, 5));
+        payload.put("lowCurrentMa", readUInt4LE(data, 9));
+        payload.put("highCurrentMa", readUInt4LE(data, 13));
+        payload.put("lowTemperatureC", readInt4LE(data, 17));
+        payload.put("highTemperatureC", readInt4LE(data, 21));
+        payload.put("fanOpenTemperatureC", readInt4LE(data, 25));
+        payload.put("reportCycleSeconds", readUInt4LE(data, 33));
+    }
+
+    private void parseDeviceInfoPayload(byte[] data, Map<String, Object> payload) {
+        if (data.length < 45) {
+            return;
+        }
+
+        payload.put("deviceNo", readUInt4LE(data, 1));
+        payload.put("deviceType", readFixedString(data, 5, 20));
+        payload.put("softwareVersion", readFixedString(data, 25, 10));
+        payload.put("hardwareVersion", readFixedString(data, 35, 10));
+    }
+
+    private String readFixedString(byte[] data, int offset, int length) {
+        int end = Math.min(data.length, offset + length);
+        int actualEnd = offset;
+        while (actualEnd < end && data[actualEnd] != 0) {
+            actualEnd++;
+        }
+        return new String(data, offset, actualEnd - offset, StandardCharsets.UTF_8).trim();
+    }
+
+    private int readUInt2LE(byte[] data, int offset) {
+        return (data[offset] & 0xFF) | ((data[offset + 1] & 0xFF) << 8);
+    }
+
+    private long readUInt4LE(byte[] data, int offset) {
+        return (data[offset] & 0xFFL)
+                | ((data[offset + 1] & 0xFFL) << 8)
+                | ((data[offset + 2] & 0xFFL) << 16)
+                | ((data[offset + 3] & 0xFFL) << 24);
+    }
+
+    private int readInt4LE(byte[] data, int offset) {
+        return (data[offset] & 0xFF)
+                | ((data[offset + 1] & 0xFF) << 8)
+                | ((data[offset + 2] & 0xFF) << 16)
+                | (data[offset + 3] << 24);
+    }
+
+    private String bytesToIp(byte[] bytes) {
+        return (bytes[0] & 0xFF) + "."
+                + (bytes[1] & 0xFF) + "."
+                + (bytes[2] & 0xFF) + "."
+                + (bytes[3] & 0xFF);
+    }
+
+    private String bytesToHex(byte[] bytes, String separator) {
+        StringBuilder sb = new StringBuilder();
+        for (int i = 0; i < bytes.length; i++) {
+            if (i > 0) {
+                sb.append(separator);
+            }
+            sb.append(String.format("%02X", bytes[i]));
+        }
+        return sb.toString();
+    }
+
+    private String toHex(byte value) {
+        return String.format("0x%02X", value & 0xFF);
+    }
+
+    private String toCommandStatus(int statusCode) {
+        return switch (statusCode) {
+            case 0 -> "success";
+            case 1 -> "device_error";
+            case 0xFF -> "crc_error";
+            default -> "unknown";
+        };
+    }
+
+    private String toStatusText(int statusCode) {
+        return switch (statusCode) {
+            case 0 -> "正常";
+            case 1 -> "异常";
+            case 0xFF -> "CRC错误";
+            default -> "未知状态(" + statusCode + ")";
+        };
     }
 
     /**

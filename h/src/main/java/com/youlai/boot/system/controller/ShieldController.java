@@ -315,7 +315,11 @@ public class ShieldController {
             return Result.success(response);
         }
 
-        response.put("status", "completed");
+        if (result instanceof Map<?, ?> resultMap && resultMap.containsKey("status")) {
+            response.put("status", resultMap.get("status"));
+        } else {
+            response.put("status", "completed");
+        }
         response.put("result", result);
         return Result.success(response);
     }

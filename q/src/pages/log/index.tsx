@@ -32,13 +32,22 @@ const normalizeProvinceList = (data: unknown): ProvinceVO[] => {
   return Array.isArray(innerData) ? innerData : [];
 };
 
-const downloadCsv = (rows: OperLogRecord[], filename: string) => {
+type LogIntl = ReturnType<typeof useIntl>;
+
+const downloadCsv = (rows: OperLogRecord[], filename: string, intl: LogIntl) => {
   const headers = ['Username', 'Login Time', 'Module', 'Action Type', 'Action', 'Operation Time'];
   const escapeCell = (value: unknown) => `"${String(value ?? '').replace(/"/g, '""')}"`;
   const csv = [
     headers.map(escapeCell).join(','),
     ...rows.map((row) =>
-      [row.createBy, row.loginTime, row.moduleCode, row.actionCode, row.content, row.operateTime]
+      [
+        row.createBy,
+        row.loginTime,
+        formatModule(intl, row.moduleCode),
+        formatAction(intl, row.actionCode),
+        formatLogContent(intl, row),
+        row.operateTime,
+      ]
         .map(escapeCell)
         .join(',')
     ),
@@ -174,7 +183,7 @@ const LogPage: React.FC = () => {
                 <div />
                 <Button
                   icon={<DownloadOutlined />}
-                  onClick={() => downloadCsv(logList, `operation-logs-${Date.now()}.csv`)}
+                  onClick={() => downloadCsv(logList, `operation-logs-${Date.now()}.csv`, intl)}
                 >
                   {t('pages.log.action.export', 'Export')}
                 </Button>

@@ -76,6 +76,7 @@ type MarkerActionState = {
 const INITIAL_DEVICES: DeviceItem[] = [];
 const getDeviceMarkerColor = (isAlarm?: number) => (isAlarm ? '#ff1616' : '#1677ff');
 const POWER_CHANNEL_KEYS = Array.from({ length: 18 }, (_, index) => `ch${index + 1}`);
+const MAX_ATT_VALUE = 63;
 const INITIAL_POWER_CHANNEL_VALUES = Object.fromEntries(
   POWER_CHANNEL_KEYS.map((key) => [key, 0])
 ) as Record<string, number>;
@@ -115,7 +116,7 @@ const parseDeviceTimeValue = (value?: string) => {
 
 const normalizePowerChannelValue = (value?: string | number | null) => {
   const nextValue = Number(value);
-  return Number.isFinite(nextValue) ? nextValue : 0;
+  return Number.isFinite(nextValue) ? Math.max(0, Math.min(MAX_ATT_VALUE, nextValue)) : 0;
 };
 
 const getFloorDisplayName = (floor: { floorName?: string; floorNo?: number }) => {

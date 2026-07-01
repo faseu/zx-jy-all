@@ -48,6 +48,8 @@ type EditDeviceModalProps = {
   onPowerChannelChange: (key: string, value: number) => void;
 };
 
+const MAX_ATT_VALUE = 63;
+
 const EditDeviceModal: React.FC<EditDeviceModalProps> = ({
   open,
   step,
@@ -340,7 +342,7 @@ const EditDeviceModal: React.FC<EditDeviceModalProps> = ({
                             </span>
                             <Slider
                               min={0}
-                              max={100}
+                              max={MAX_ATT_VALUE}
                               style={{ flex: 1, margin: 0 }}
                               tooltip={{ open: false }}
                               onChange={(value) => {

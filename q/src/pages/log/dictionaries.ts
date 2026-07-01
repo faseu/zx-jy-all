@@ -77,10 +77,45 @@ export const formatModule = (intl: MessageFormatter, code?: string) =>
     defaultMessage: code || 'SYSTEM',
   });
 
+const LEGACY_ACTION_TEXT: Record<string, RegExp> = {
+  LOGIN: /^(log\s*in|login|登录|鐧诲綍).*$/i,
+  LOGOUT: /^(log\s*out|logout|退出|退出登录|閫€鍑|閫€鍑虹櫥褰).*$/i,
+  EXPORT: /^(export|导出|瀵煎嚭).*$/i,
+  DELETE: /^(delete|删除|鍒犻櫎).*$/i,
+  CREATE: /^(create|add|新增|添加|鏂板|娣诲姞).*$/i,
+  UPDATE: /^(update|edit|save|设置|修改|保存|淇敼|淇濆瓨|璁剧疆).*$/i,
+  VIEW: /^(view|query|search|查看|查询|鏌ョ湅|鏌ヨ).*$/i,
+  CLICK: /^(click|点击|鐐瑰嚮).*$/i,
+};
+
+const isGeneratedActionText = (value: string, actionCode?: string) => {
+  const text = value.trim();
+  if (!text) {
+    return true;
+  }
+
+  const actionPattern = LEGACY_ACTION_TEXT[actionCode || ''];
+  if (actionPattern?.test(text)) {
+    return true;
+  }
+
+  return Object.values(LEGACY_ACTION_TEXT).some((pattern) => pattern.test(text));
+};
+
+const resolveTargetName = (record: OperLogRecord) => {
+  const targetName = (record.targetName || record.content || '').trim();
+
+  if (!targetName || isGeneratedActionText(targetName, record.actionCode)) {
+    return '';
+  }
+
+  return targetName;
+};
+
 export const formatLogContent = (intl: MessageFormatter, record: OperLogRecord) => {
   const action = formatAction(intl, record.actionCode);
   const moduleName = formatModule(intl, record.moduleCode);
-  const targetName = record.targetName || record.content || record.path || '';
+  const targetName = resolveTargetName(record);
 
   return intl.formatMessage(
     {

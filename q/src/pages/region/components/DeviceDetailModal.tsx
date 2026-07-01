@@ -20,6 +20,7 @@ const CHANNEL_KEYS = Array.from(
   { length: 18 },
   (_, index) => `ch${index + 1}` as keyof DeviceFormVO
 );
+const MAX_ATT_VALUE = 63;
 
 const valueOrDash = (value?: string | number | null) => {
   if (value === null || value === undefined || value === '') {
@@ -36,7 +37,7 @@ const parseChannelValue = (value?: string | number | null) => {
     return 0;
   }
 
-  return Math.max(0, Math.min(100, resolved));
+  return Math.max(0, Math.min(MAX_ATT_VALUE, resolved));
 };
 
 const isChannelEnabled = (channelStates: number, channel: number) =>
@@ -64,8 +65,9 @@ const ChannelRow: React.FC<{
       {label}:
     </div>
     <div style={{ marginLeft: 18, flex: 1, paddingRight: 18 }}>
-      <Slider value={value} min={0} max={100} tooltip={{ open: false }} onChange={onChange} />
+      <Slider value={value} min={0} max={MAX_ATT_VALUE} tooltip={{ open: false }} onChange={onChange} />
     </div>
+    <div style={{ width: 64, fontSize: 14, color: '#333' }}>{(value * 0.5).toFixed(1)}dB</div>
     <Switch
       size="small"
       checked={Boolean(switchChecked)}

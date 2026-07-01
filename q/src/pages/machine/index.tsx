@@ -94,6 +94,7 @@ type MachineTranslate = (
 ) => string;
 
 const POWER_CHANNEL_KEYS = Array.from({ length: 18 }, (_, index) => `ch${index + 1}`);
+const MAX_ATT_VALUE = 63;
 const INITIAL_POWER_CHANNEL_VALUES = Object.fromEntries(
   POWER_CHANNEL_KEYS.map((key) => [key, 0])
 ) as Record<string, number>;
@@ -110,7 +111,7 @@ const parsePowerChannelValue = (value?: string | number | null) => {
     return 0;
   }
 
-  return resolved;
+  return Math.max(0, Math.min(MAX_ATT_VALUE, resolved));
 };
 
 const summarizeGroupSwitch = (devices?: DeviceVO[]): GroupSwitchSummary => {
