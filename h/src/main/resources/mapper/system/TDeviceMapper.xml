@@ -1,0 +1,278 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.youlai.boot.system.mapper.TDeviceMapper">
+
+    <!-- 获取设备分页列表 -->
+    <select id="getTDevicePage" resultType="com.youlai.boot.system.model.vo.TDeviceVO">
+        SELECT
+                id,
+                device_no,
+                device_name,
+                entire_no,
+                floor_name,
+                floor_id,
+                building_id,
+                building_name,
+                prison_id,
+                prison_name,
+                power_off,
+                power_config,
+                ip_address,
+                port,
+                create_by,
+                create_time,
+                update_by,
+                update_time,
+                is_deleted,
+                parameters,
+                start_time,
+                end_time,
+                position_x,
+                position_y,
+                voltage,
+                electric_current,
+                radio_frequency,
+                ch1,
+                ch2,
+                ch3,
+                ch4,
+                ch5,
+                ch6,
+                ch7,
+                ch8,
+                ch9,
+                ch10,
+                ch11,
+                ch12,
+                ch13,
+                ch14,
+                ch15,
+                ch16,
+                ch17,
+                ch18
+        FROM
+            t_device
+        <where>
+            is_deleted = 0
+            <if test='queryParams.name!=null and queryParams.name.trim() neq ""'>
+                AND (
+                device_name LIKE CONCAT('%',#{queryParams.name},'%')
+                )
+            </if>
+        </where>
+    </select>
+
+
+    <!--   查询所有设备（根据楼层ID筛选）-->
+    <select id="selectByFloorIds" resultType="com.youlai.boot.system.model.entity.TDevice">
+        SELECT
+        d.id,
+        d.device_no,
+        d.device_name,
+        d.entire_no,
+        d.floor_name,
+        d.floor_id,
+        d.building_id,
+        d.building_name,
+        d.prison_id,
+        d.prison_name,
+        d.power_off,
+        d.power_config,
+        d.ip_address,
+        d.port,
+        d.create_by,
+        d.create_time,
+        d.update_by,
+        d.update_time,
+        d.is_deleted,
+        d.parameters,
+        d.start_time,
+        d.end_time,
+        d.position_x,
+        d.position_y,
+        d.voltage,
+        d.electric_current,
+        d.radio_frequency,
+        d.ch1,
+        d.ch2,
+        d.ch3,
+        d.ch4,
+        d.ch5,
+        d.ch6,
+        d.ch7,
+        d.ch8,
+        d.ch9,
+        d.ch10,
+        d.ch11,
+        d.ch12,
+        d.ch13,
+        d.ch14,
+        d.ch15,
+        d.ch16,
+        d.ch17,
+        d.ch18,
+        -- 关键字段：是否告警 1=告警中 0=正常
+        CASE WHEN a.device_id IS NOT NULL THEN 1 ELSE 0 END AS isAlarm
+        FROM
+        t_device d
+        -- 左关联告警表（只查存在性）
+        LEFT JOIN t_alarm a ON d.id = a.device_id AND a.is_deleted = 0 and a.blocked = 0
+        and a.processing_status = 0
+
+        <where>
+            d.is_deleted = 0
+            <choose>
+                <when test="floorIds!=null and floorIds.size>0">
+                    and d.floor_id in
+                    <foreach collection="floorIds" item="id" separator="," open="(" close=")">
+                        #{id}
+                    </foreach>
+                </when>
+                <otherwise>
+                    and d.id = -1
+                </otherwise>
+            </choose>
+            <if test='queryParams.name!=null and queryParams.name.trim() neq ""'>
+                AND (
+                d.device_name LIKE CONCAT('%',#{queryParams.name},'%')
+                )
+            </if>
+        </where>
+        -- 如果一个设备多条告警，只保留一条判断
+        GROUP BY d.id
+    </select>
+
+    <update id="updateTDeviceXY">
+        update t_device set position_x = #{positionX}, position_y = #{positionY} where id = #{id}
+    </update>
+
+    <select id="getTDeviceByPrisonId" resultType="com.youlai.boot.system.model.entity.TDevice">
+        SELECT
+        id,
+        device_no,
+        device_name,
+        entire_no,
+        floor_name,
+        floor_id,
+        building_id,
+        building_name,
+        prison_id,
+        prison_name,
+        power_off,
+        power_config,
+        ip_address,
+        port,
+        create_by,
+        create_time,
+        update_by,
+        update_time,
+        is_deleted
+        FROM
+        t_device
+        <where>
+            is_deleted = 0
+            <if test="prisonId != null">
+                AND prison_id = #{prisonId}
+            </if>
+        </where>
+    </select>
+
+    <select id="getTDeviceByBuildingId" resultType="com.youlai.boot.system.model.entity.TDevice">
+        SELECT
+        id,
+        device_no,
+        device_name,
+        entire_no,
+        floor_name,
+        floor_id,
+        building_id,
+        building_name,
+        prison_id,
+        prison_name,
+        power_off,
+        power_config,
+        ip_address,
+        port,
+        create_by,
+        create_time,
+        update_by,
+        update_time,
+        is_deleted
+        FROM
+        t_device
+        <where>
+            is_deleted = 0
+            <if test="buildingId != null">
+                AND building_id = #{buildingId}
+            </if>
+        </where>
+    </select>
+    <select id="getTDeviceByFloorId" resultType="com.youlai.boot.system.model.entity.TDevice">
+        SELECT
+        id,
+        device_no,
+        device_name,
+        entire_no,
+        floor_name,
+        floor_id,
+        building_id,
+        building_name,
+        prison_id,
+        prison_name,
+        power_off,
+        power_config,
+        ip_address,
+        port,
+        create_by,
+        create_time,
+        update_by,
+        update_time,
+        is_deleted
+        FROM
+        t_device
+        <where>
+            is_deleted = 0
+            <if test="floorId != null">
+                AND floor_id = #{floorId}
+            </if>
+        </where>
+    </select>
+    <select id="getTDeviceByDeviceIds" resultType="com.youlai.boot.system.model.entity.TDevice">
+        SELECT
+        id,
+        device_no,
+        device_name,
+        entire_no,
+        floor_name,
+        floor_id,
+        building_id,
+        building_name,
+        prison_id,
+        prison_name,
+        power_off,
+        power_config,
+        ip_address,
+        port,
+        create_by,
+        create_time,
+        update_by,
+        update_time,
+        is_deleted
+        FROM
+        t_device
+        <where>
+            is_deleted = 0
+            <choose>
+                <when test="ids!=null and ids.size>0">
+                    and id in
+                    <foreach collection="ids" item="id" separator="," open="(" close=")">
+                        #{id}
+                    </foreach>
+                </when>
+                <otherwise>
+                    and id = -1
+                </otherwise>
+            </choose>
+        </where>
+    </select>
+</mapper>

@@ -1,0 +1,71 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.youlai.boot.system.mapper.TBuildingMapper">
+
+    <!-- 获取楼栋分页列表 -->
+    <select id="getTBuildingPage" resultType="com.youlai.boot.system.model.vo.TBuildingVO">
+        SELECT
+                id,
+                name,
+                floor_num,
+                prison_id,
+                prison_name,
+                create_by,
+                create_time,
+                update_by,
+                update_time,
+                is_deleted,
+                ground_floor_num,
+                underground_floor_num
+        FROM
+            t_building
+        <where>
+        </where>
+    </select>
+
+
+
+    <!-- 获取楼详情统计 -->
+    <select id="getTBuildingInfo" resultType="com.youlai.boot.system.model.vo.TBuildingInfoVO">
+        select p.id,  p.name, p.floor_num floorNum,
+               (select count(*) from t_device de where de.building_id = p.id and de.is_deleted=0) as totalDevices,
+               (select count(*) from t_device de where de.building_id = p.id and de.is_deleted=0 and de.power_off=0) as onlineDevices,
+               (select count(*) from t_device de where de.building_id = p.id and de.is_deleted=0 and de.power_off=1) as offlineDevices,
+               (select count(*) from t_alarm a where a.building_id = p.id and a.is_deleted=0) as totalAlarms
+        from t_building p
+        where p.id = #{id}
+    </select>
+    <!-- 楼详情楼层列表 -->
+    <select id="getFloorList" resultType="com.youlai.boot.system.model.vo.TFloorDetailVO">
+        select b.id,b.floor_name floorName,b.floor_no floorNo,b.floor_drawing floorDrawing
+        from t_floor b
+        where b.is_deleted= 0 and b.building_id = #{id}
+    </select>
+
+    <!--   查询所有楼栋（根据监狱ID筛选）-->
+    <select id="selectByPrisonIds" resultType="com.youlai.boot.system.model.entity.TBuilding">
+        SELECT
+        id, name, prison_id
+        FROM
+        t_building
+        <where>
+            is_deleted = 0
+            <choose>
+                <when test="prisonIds!=null and prisonIds.size>0">
+                    and prison_id in
+                    <foreach collection="prisonIds" item="id" separator="," open="(" close=")">
+                        #{id}
+                    </foreach>
+                </when>
+                <otherwise>
+                    and id = -1
+                </otherwise>
+            </choose>
+            <if test='queryParams.name!=null and queryParams.name.trim() neq ""'>
+                AND (
+                name LIKE CONCAT('%',#{queryParams.name},'%')
+                )
+            </if>
+        </where>
+    </select>
+</mapper>

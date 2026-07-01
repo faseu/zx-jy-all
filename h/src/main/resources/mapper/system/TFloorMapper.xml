@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.youlai.boot.system.mapper.TFloorMapper">
+
+    <!-- 获取楼层分页列表 -->
+    <select id="getTFloorPage" resultType="com.youlai.boot.system.model.vo.TFloorVO">
+        SELECT
+                id,
+                floor_name,
+                floor_no,
+                building_id,
+                building_name,
+                device_number,
+                floor_drawing,
+                create_by,
+                create_time,
+                update_by,
+                update_time,
+                is_deleted
+        FROM
+            t_floor
+        <where>
+            is_deleted = 0
+            <if test="queryParams.buildingId != null ">
+                AND building_id = #{queryParams.buildingId}
+            </if>
+        </where>
+    </select>
+
+    <!--   查询所有楼层（根据楼栋ID筛选）-->
+    <select id="selectByBuildingIds" resultType="com.youlai.boot.system.model.entity.TFloor">
+        SELECT
+            id,
+            floor_name,building_id
+        FROM
+        t_floor
+        <where>
+            is_deleted = 0
+            <choose>
+                <when test="buildingIds!=null and buildingIds.size>0">
+                    and building_id in
+                    <foreach collection="buildingIds" item="id" separator="," open="(" close=")">
+                        #{id}
+                    </foreach>
+                </when>
+                <otherwise>
+                    and id = -1
+                </otherwise>
+            </choose>
+            <if test='queryParams.name!=null and queryParams.name.trim() neq ""'>
+                AND (
+                floor_name LIKE CONCAT('%',#{queryParams.name},'%')
+                )
+            </if>
+        </where>
+    </select>
+
+    <update id="updateTFloorDraw">
+        update t_floor set floor_drawing = #{filePath} where id = #{floorId}
+    </update>
+</mapper>

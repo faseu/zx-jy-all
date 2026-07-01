@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.youlai.boot.system.mapper.DeptMapper">
+
+    <!-- 获取省份列表 -->
+    <select id="getProvinceList" resultType="com.youlai.boot.system.model.vo.ProvinceVO">
+        select d.id provinceId, d.name provinceName,
+        (select count(*) from t_prison p where p.dept_id = d.id and p.is_deleted=0) as totalPrisons,
+        (select count(*) from t_device de left join t_prison p on p.id = de.prison_id
+        where p.dept_id = d.id and de.is_deleted=0 and p.is_deleted=0) as totalDevices
+        from sys_dept d
+        <where>
+            parent_id = 1
+            <choose>
+                <when test="ids!=null and ids.size>0">
+                    and d.id in
+                    <foreach collection="ids" item="id" separator="," open="(" close=")">
+                        #{id}
+                    </foreach>
+                </when>
+                <otherwise>
+                    and d.id = -1
+                </otherwise>
+            </choose>
+        </where>
+    </select>
+
+    <!-- 获取省份列表 -->
+    <select id="getDeptIdsByUserId" resultType="java.lang.Long">
+        select distinct d.id
+        from sys_dept d inner join sys_user_area sua on d.id = sua.area_id
+        inner join sys_user u on u.id = sua.user_id
+        where u.id = #{userId}
+    </select>
+
+    <!-- 获取省份详情 -->
+    <select id="getProvinceInfo" resultType="com.youlai.boot.system.model.vo.ProvinceDetailVO">
+        select d.id provinceId, d.name provinceName,
+               (select count(*) from t_prison p where p.dept_id = d.id and p.is_deleted=0) as totalPrisons,
+               (select count(*) from t_device de left join t_prison p on p.id = de.prison_id
+                where p.dept_id = d.id and de.is_deleted=0 and p.is_deleted=0) as totalDevices,
+               (select count(*) from t_device de left join t_prison p on p.id = de.prison_id
+                where p.dept_id = d.id and de.is_deleted=0 and p.is_deleted=0 and de.power_off=0) as onlineDevices,
+               (select count(*) from t_device de left join t_prison p on p.id = de.prison_id
+                where p.dept_id = d.id and de.is_deleted=0 and p.is_deleted=0 and de.power_off=1) as offlineDevices,
+               (select count(*) from t_alarm a left join t_prison p on p.id = a.prison_id
+                where p.dept_id = d.id and a.is_deleted=0 and p.is_deleted=0) as totalAlarms
+        from sys_dept d
+        where parent_id = 1 and d.id  = #{provinceId}
+    </select>
+    <!-- 省份详情监狱列表 -->
+    <select id="getPrisonList" resultType="com.youlai.boot.system.model.vo.TPrisonDetailVO">
+        select p.id,p.name,p.level,
+               (select count(*) from t_building b where b.prison_id = p.id and b.is_deleted = 0) as buildingNum,
+               (select count(*) from t_device d where d.prison_id = p.id and d.is_deleted = 0) as totalDevices
+        from t_prison p
+        where p.is_deleted=0 and p.dept_id  = #{provinceId}
+    </select>
+</mapper>

@@ -1,0 +1,29 @@
+# Dependencies
+node_modules/
+
+# Build outputs
+dist/
+target/
+outputs/
+tmp/
+*.zip
+
+# Logs and runtime caches
+*.log
+.codex/
+.codex-logs/
+
+# IDE and OS files
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+
+# JavaScript package manager caches
+.pnpm-store/
+.yarn/
+
+# Environment files
+.env
+.env.*
+!.env.example

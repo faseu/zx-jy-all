@@ -1,0 +1,75 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.youlai.boot.system.mapper.TPrisonMapper">
+
+    <!-- 获取监狱分页列表 -->
+    <select id="getTPrisonPage" resultType="com.youlai.boot.system.model.vo.TPrisonVO">
+        SELECT
+                id,
+                name,
+                room_number,
+                auth_users,
+                level,
+                dept_id,
+                dept_name,
+                create_by,
+                create_time,
+                update_by,
+                update_time,
+                is_deleted
+        FROM
+            t_prison
+        <where>
+        </where>
+    </select>
+
+
+    <!-- 获取监狱详情 -->
+    <select id="getTPrisonInfo" resultType="com.youlai.boot.system.model.vo.TPrisonInfoVO">
+        select p.id,  p.name,
+               (select count(*) from t_building b where b.prison_id = p.id and b.is_deleted=0) as buildingNum,
+               (select count(*) from t_device de where de.prison_id = p.id and de.is_deleted=0) as totalDevices,
+               (select count(*) from t_device de where de.prison_id = p.id and de.is_deleted=0 and de.power_off=0) as onlineDevices,
+               (select count(*) from t_device de where de.prison_id = p.id and de.is_deleted=0 and de.power_off=1) as offlineDevices,
+               (select count(*) from t_alarm a where a.prison_id = p.id and a.is_deleted=0) as totalAlarms
+        from t_prison p
+        where p.id = #{prisonId}
+    </select>
+    <!-- 监狱详情楼列表 -->
+    <select id="getBuildingList" resultType="com.youlai.boot.system.model.vo.TBuildingDetailVO">
+        select b.id,b.name,b.floor_num as floorNum,
+               b.ground_floor_num as groundFloorNum,
+               b.underground_floor_num as undergroundFloorNum,
+               (select count(*) from t_device d where d.building_id = b.id and d.is_deleted = 0) as totalDevices
+        from t_building b
+        where b.is_deleted= 0 and b.prison_id = #{prisonId}
+    </select>
+
+
+    <!-- 查询所有监狱 根据省份ID筛选 -->
+    <select id="selectByProvinceIds" resultType="com.youlai.boot.system.model.entity.TPrison">
+        SELECT
+            id, name,dept_id, level
+        FROM
+            t_prison
+        <where>
+            is_deleted = 0
+            <choose>
+                <when test="provinceIds!=null and provinceIds.size>0">
+                    and dept_id in
+                    <foreach collection="provinceIds" item="id" separator="," open="(" close=")">
+                        #{id}
+                    </foreach>
+                </when>
+                <otherwise>
+                    and id = -1
+                </otherwise>
+            </choose>
+            <if test='queryParams.name!=null and queryParams.name.trim() neq ""'>
+                AND (
+                name LIKE CONCAT('%',#{queryParams.name},'%')
+                )
+            </if>
+        </where>
+    </select>
+</mapper>

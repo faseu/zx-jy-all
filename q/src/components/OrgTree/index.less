@@ -1,0 +1,69 @@
+.treeSpin {
+  width: 100%;
+}
+
+.orgTree {
+  background: transparent;
+  color: #2a2a2a;
+  font-size: 22px;
+  line-height: 1.9;
+
+  :global {
+    .ant-tree-treenode {
+      align-items: center;
+    }
+
+    .ant-tree-node-content-wrapper {
+      min-height: 44px;
+      padding: 0 8px;
+      border-radius: 4px;
+      display: flex;
+      align-items: center;
+    }
+
+    .ant-tree-switcher {
+      width: 24px !important;
+      min-width: 24px;
+      height: 34px !important;
+      flex: 0 0 24px;
+      margin-right: 2px;
+      border-radius: 8px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      line-height: 1;
+      align-self: center;
+      transition: background-color 0.2s ease;
+    }
+
+    .ant-tree-switcher:hover {
+      background: #f1f3f5;
+    }
+
+    .ant-tree-switcher .anticon,
+    .ant-tree-switcher .ant-tree-switcher-icon {
+      font-size: 18px !important;
+      width: 18px;
+      height: 18px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .ant-tree-switcher-noop {
+      visibility: hidden;
+    }
+  }
+}
+
+.treeSwitcherIcon {
+  font-size: 18px !important;
+  width: 18px;
+  height: 18px;
+}
+
+@media (max-width: 1600px) {
+  .orgTree {
+    font-size: 18px;
+  }
+}

@@ -1,0 +1,118 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.youlai.boot.system.mapper.TAlarmMapper">
+
+    <!-- 获取告警分页列表 -->
+    <select id="getTAlarmPage" resultType="com.youlai.boot.system.model.vo.TAlarmVO">
+        SELECT
+            a.id,
+            a.entire_no,
+            a.device_id,
+            a.device_name,
+            a.prison_id,
+            p.name prison_name,
+            a.content,
+            a.type,
+            a.alarm_time,
+            a.suggestions,
+            a.processing_status,
+            a.resolution_time,
+            a.blocked,
+            a.create_by,
+            a.create_time,
+            a.update_by,
+            a.update_time,
+            a.is_deleted,
+            b.name building_name,
+            b.id building_id,
+            f.id floor_id,
+            f.floor_name
+        FROM
+        t_alarm a
+            left join t_device d on d.id = a.device_id
+            left join t_floor f on f.id = d.floor_id
+            left join t_building b on b.id = f.building_id
+            left join t_prison p on p.id = b.prison_id
+        <where>
+            a.is_deleted = 0
+            <if test="queryParams.provinceId != null">
+                AND p.dept_id = #{queryParams.provinceId}
+            </if>
+            <if test="queryParams.prisonId != null">
+                AND a.prison_id = #{queryParams.prisonId}
+            </if>
+            <if test="queryParams.buildingId != null">
+                AND b.id = #{queryParams.buildingId}
+            </if>
+
+            <if test='queryParams.deviceName!=null and queryParams.deviceName.trim() neq ""'>
+                AND (
+                a.device_name LIKE CONCAT('%',#{queryParams.deviceName},'%')
+                )
+            </if>
+            <if test="queryParams.type != null">
+                AND a.type = #{queryParams.type}
+            </if>
+            <if test="queryParams.startDate!= null and queryParams.startDate != ''">
+                AND a.alarm_time &gt;= #{queryParams.startDate}
+            </if>
+            <if test="queryParams.endDate!= null and queryParams.endDate != ''">
+                AND a.alarm_time &lt;= #{queryParams.endDate}
+            </if>
+            <if test="queryParams.processingStatus!= null ">
+                AND a.processing_status = #{queryParams.processingStatus}
+            </if>
+            <if test="queryParams.processingStatus!= null ">
+                AND a.processing_status = #{queryParams.processingStatus}
+            </if>
+            <if test="queryParams.blocked!= null ">
+                AND a.blocked = #{queryParams.blocked}
+            </if>
+        </where>
+        ORDER BY a.alarm_time DESC
+    </select>
+
+
+    <!-- 获取用户导出列表 -->
+    <select id="listExportAlarms" resultType="com.youlai.boot.system.model.dto.AlarmExportDTO">
+        SELECT
+        entire_no,
+        device_name,
+        prison_name,
+        content,
+        alarm_time,
+        suggestions,
+        processing_status,
+        resolution_time
+        FROM
+        t_alarm
+        <where>
+            is_deleted = 0
+            <if test='queryParams.deviceName!=null and queryParams.deviceName.trim() neq ""'>
+                AND (
+                device_name LIKE CONCAT('%',#{queryParams.deviceName},'%')
+                )
+            </if>
+            <if test="queryParams.type != null">
+                AND type = #{queryParams.type}
+            </if>
+            <if test="queryParams.startDate!= null and queryParams.startDate != ''">
+                AND alarm_time &gt;= #{queryParams.startDate}
+            </if>
+            <if test="queryParams.endDate!= null and queryParams.endDate != ''">
+                AND alarm_time &lt;= #{queryParams.endDate}
+            </if>
+            <if test="queryParams.processingStatus!= null ">
+                AND processing_status = #{queryParams.processingStatus}
+            </if>
+            <if test="queryParams.processingStatus!= null ">
+                AND processing_status = #{queryParams.processingStatus}
+            </if>
+            <if test="queryParams.blocked!= null ">
+                AND blocked = #{queryParams.blocked}
+            </if>
+        </where>
+        ORDER BY alarm_time DESC
+    </select>
+
+</mapper>

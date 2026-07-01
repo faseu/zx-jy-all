@@ -1,0 +1,144 @@
+.rightPane {
+  min-height: calc(100vh - 128px);
+  background: #ffffff;
+  display: flex;
+  flex-direction: column;
+}
+
+.toolbar {
+  padding: 12px 18px 0;
+  background: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid #e3e3e3;
+}
+
+.tabs :global(.ant-tabs-nav) {
+  margin: 0;
+}
+
+.content {
+  margin: 0 14px 14px;
+  padding: 16px;
+  flex: 1;
+}
+
+.sectionTitle {
+  font-size: 20px;
+  line-height: 1;
+  color: #23262b;
+  font-weight: 600;
+  margin-bottom: 18px;
+}
+
+.filterRow {
+  display: grid;
+  grid-template-columns: 2fr 1fr 1fr auto;
+  gap: 12px;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.filterRowBottom {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 18px;
+  gap: 12px;
+}
+
+.filterItem,
+.filterItemWide {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.filterItem {
+  min-width: 220px;
+}
+
+.filterItemWide {
+  min-width: 360px;
+}
+
+.filterLabel {
+  color: #545e6b;
+  white-space: nowrap;
+  min-width: 36px;
+}
+
+.filterAction {
+  justify-self: end;
+}
+
+.exportBtn {
+  margin-left: auto;
+}
+
+.chartGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+  margin-top: 8px;
+}
+
+.chartCard {
+}
+
+.chartCardLarge {
+  margin-top: 14px;
+}
+
+.chartTitle {
+  margin: 0 0 8px !important;
+  font-size: 20px !important;
+  line-height: 1.1 !important;
+  font-weight: 700 !important;
+  color: #1f2630 !important;
+}
+
+.combinedChart {
+  position: relative;
+  min-height: 240px;
+}
+
+.combinedColumn,
+.combinedLine {
+  position: absolute;
+  inset: 0;
+}
+
+.combinedColumn {
+  z-index: 1;
+}
+
+.combinedLine {
+  z-index: 2;
+}
+
+.combinedLine :global(canvas) {
+  background: transparent !important;
+}
+
+@media (max-width: 1680px) {
+  .chartTitle {
+    font-size: 20px !important;
+  }
+}
+
+@media (max-width: 1366px) {
+  .filterRow {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .filterAction {
+    justify-self: start;
+  }
+
+  .chartGrid {
+    grid-template-columns: 1fr;
+  }
+
+}
